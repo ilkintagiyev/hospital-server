@@ -1,11 +1,10 @@
 import { db } from "../index.js";
 import { verifyToken } from "../utils/middleware.js";
+import { sendSMS } from "../utils/sms.js";
 
 export const addAppointment = async (req, res) => {
     const profile = await verifyToken(req, res);
     const { date, doctorId } = req.body;
-
-    console.log(profile?.id);
 
     try {
         const checkQuery = `SELECT id FROM appointments WHERE doctor_id = ? AND appointment_date = ?`;
@@ -90,9 +89,7 @@ export const getAppointments = async (req, res) => {
 
 
 export const acceptAppointment = async (req, res) => {
-    const profile = await verifyToken(req, res);
     const { appointmentId } = req.body;
-
 
     try {
         // Əvvəlcə görüş məlumatını tap
@@ -104,25 +101,47 @@ export const acceptAppointment = async (req, res) => {
 
             const appointment = results[0];
 
-            // Yeni cədvələ əlavə et
-            const insertQuery = `
-                INSERT INTO accepted_appointments (user_id, doctor_id, appointment_date)
-                VALUES (?, ?, ?)
-            `;
-            db.query(insertQuery, [appointment.user_id, appointment.doctor_id, appointment.appointment_date], (insertErr) => {
-                if (insertErr) {
-                    return res.status(500).json({ message: "Görüş qəbul edilərkən xəta baş verdi." });
+            // İstifadəçinin məlumatlarını götür (telefon + ad)
+            const userQuery = `SELECT name, telephone FROM users WHERE id = ?`;
+            db.query(userQuery, [appointment.user_id], (userErr, userResults) => {
+                if (userErr || userResults.length === 0) {
+                    return res.status(404).json({ message: "İstifadəçi tapılmadı." });
                 }
 
-                // Əsas görüşü sil
-                const deleteQuery = `DELETE FROM appointments WHERE id = ?`;
-                db.query(deleteQuery, [appointmentId], (deleteErr) => {
-                    if (deleteErr) {
-                        return res.status(500).json({ message: "Əsas görüş silinə bilmədi." });
-                    }
+                const user = userResults[0];
 
-                    return res.status(200).json({ message: "Görüş uğurla qəbul edildi." });
-                });
+                // Yeni cədvələ əlavə et
+                const insertQuery = `
+                    INSERT INTO accepted_appointments (user_id, doctor_id, appointment_date)
+                    VALUES (?, ?, ?)
+                `;
+                db.query(
+                    insertQuery,
+                    [appointment.user_id, appointment.doctor_id, appointment.appointment_date],
+                    (insertErr) => {
+                        if (insertErr) {
+                            return res.status(500).json({ message: "Görüş qəbul edilərkən xəta baş verdi." });
+                        }
+
+                        // Əsas görüşü sil
+                        const deleteQuery = `DELETE FROM appointments WHERE id = ?`;
+                        db.query(deleteQuery, [appointmentId], async (deleteErr) => {
+                            if (deleteErr) {
+                                return res.status(500).json({ message: "Əsas görüş silinə bilmədi." });
+                            }
+
+                            // İstifadəçiyə SMS göndər
+                            await sendSMS(
+                                user.telephone,
+                                `Hörmətli ${user.name}, görüşünüz həkim tərəfindən təsdiqləndi ✅`
+                            );
+
+                            return res.status(200).json({
+                                message: "Görüş uğurla qəbul edildi və istifadəçiyə SMS göndərildi."
+                            });
+                        });
+                    }
+                );
             });
         });
 

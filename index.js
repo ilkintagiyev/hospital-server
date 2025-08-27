@@ -16,20 +16,14 @@ const app = express();
 app.use(express.json());
 app.use(cors(corsOptions));
 
-export const db = mysql.createConnection({
-    host: "taghiyr7.beget.tech",
-    user: "taghiyr7_hospita",
-    password: "Ilkin3719",
-    database: "taghiyr7_hospita",
-    insecureAuth: true,
-});
-
-db.connect((err) => {
-    if (err) {
-        console.error("Error connecting to MySQL:", err);
-    } else {
-        console.log("Connected to MySQL");
-    }
+export const db = mysql.createPool({
+    host: "localhost",
+    user: "root",
+    password: "ilkin3719", 
+    database: "hospital",
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
 });
 
 

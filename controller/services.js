@@ -8,13 +8,13 @@ export const getServices = async (req, res) => {
             res.json(results);
         });
     } catch (error) {
+        console.log(error);
         res.status(500).json({ error: 'Server error' });
     }
 };
 
 export const getServiceById = async (req, res) => {
     const { id } = req.params;
-
 
     try {
         const serviceQuery = `SELECT * FROM services WHERE id = ?`;
