@@ -17,9 +17,9 @@ app.use(express.json());
 app.use(cors(corsOptions));
 
 export const db = mysql.createPool({
-    host: "localhost",
+    host: "45.94.4.182",
     user: "root",
-    password: "ilkin3719", 
+    password: "pass12341234",
     database: "hospital",
     waitForConnections: true,
     connectionLimit: 10,
